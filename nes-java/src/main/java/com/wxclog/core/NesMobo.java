@@ -60,7 +60,7 @@ public class NesMobo {
      * 主板通电
      */
     public void powerUp(){
-        byte perFrameMillis = 1000 / 1000;
+        byte perFrameMillis = 1000 / 80;
         int[] renderBuff = new int[(256+16)*240];
         short[][] frameData = new short[240][3];
         byte[][] frameSpriteData = new byte[240][2];
@@ -104,9 +104,7 @@ public class NesMobo {
             }else{
                 frame++;
             }
-
-//            System.out.println(watch.getMs());
-//            this.delay(begin,perFrameMillis);
+            this.delay(begin,perFrameMillis);
         }
     }
 

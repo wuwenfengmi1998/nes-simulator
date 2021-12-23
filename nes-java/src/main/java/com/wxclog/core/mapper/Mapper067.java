@@ -13,21 +13,13 @@ public class Mapper067 implements IMapper {
 
     private byte switchPrgBank = 0;
     private byte romPRGSize;
-    private byte[] cardChrBank;
 
     public Mapper067(byte romPRGSize, byte romChrSize,byte[] romCHR) {
         this.romPRGSize = romPRGSize;
-        if(romChrSize > 1){
-            cardChrBank = new byte[(romChrSize-1)*8*1024];
-            System.arraycopy(romCHR,1*8*1024, cardChrBank,0, cardChrBank.length);
-        }
     }
 
     @Override
     public void write(int addr, byte data) {
-        if((addr&0x8800) == 0x8000){
-            System.out.println("0x8800");
-        }
         //MASK: $F800
         switch (addr&0xF800){
             //CHR bank 0…3 ($8800..$BFFF)

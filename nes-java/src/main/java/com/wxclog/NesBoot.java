@@ -8,7 +8,6 @@ import com.wxclog.core.mapper.IMapper;
 import com.wxclog.core.ppu.Ppu;
 import com.wxclog.rom.HeaderData;
 import com.wxclog.rom.NESRomData;
-import com.wxclog.ui.NesKeyAdapter;
 import com.wxclog.ui.NesPpuRender;
 import com.wxclog.util.RomReaderUtil;
 
@@ -64,7 +63,7 @@ public class NesBoot {
         try {
             DataInputStream dataInputStream = new DataInputStream(new FileInputStream(filePath));
             HeaderData headerData = RomReaderUtil.readHeader(dataInputStream);
-            headerData.setMapperNo((byte) (headerData.getControlData1().getRomMapperLow() | (headerData.getControlData2().getRomMapperHigh()<<4)));
+            headerData.setMapperNo((byte) ((headerData.getControlData2().getRomMapperHigh()<<4)|headerData.getControlData1().getRomMapperLow()));
             romData.setHeaderData(headerData);
             //16k PRG-ROM
             romData.setRomPRG(RomReaderUtil.readRomData(dataInputStream,headerData.getRomPRGSize(),16));
