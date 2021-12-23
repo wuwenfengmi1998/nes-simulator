@@ -1,34 +1,21 @@
 //
 // Created by WStars on 2021/9/1.
 //
-#include <malloc.h>
-#include <string.h>
 #include <stdio.h>
 #include <stm32f4xx_ll_dma.h>
-#include <stdbool.h>
+#include "stm32f4xx_ll_usart.h"
 #include "nes.h"
 #include "ILI9341.h"
 //#include "sdcard.h"
-//#include "usart.h"
 //RGB32位颜色
-short palettes[65][3] = {
-         { 0x75, 0x75, 0x75 },{ 0x27, 0x1B, 0x8F },{ 0x00, 0x00, 0xAB },{ 0x47, 0x00, 0x9F },{ 0x8F, 0x00, 0x77 },{ 0xAB, 0x00, 0x13 },{ 0xA7, 0x00, 0x00 },{ 0x7F, 0x0B, 0x00 },
-         { 0x43, 0x2F, 0x00 },{ 0x00, 0x47, 0x00 },{ 0x00, 0x51, 0x00 },{ 0x00, 0x3F, 0x17 },{ 0x1B, 0x3F, 0x5F },{ 0x00, 0x00, 0x00 },{ 0x05, 0x05, 0x05 },{ 0x05, 0x05, 0x05 },
-         { 0xBC, 0xBC, 0xBC },{ 0x00, 0x73, 0xEF },{ 0x23, 0x3B, 0xEF },{ 0x83, 0x00, 0xF3 },{ 0xBF, 0x00, 0xBF },{ 0xE7, 0x00, 0x5B },{ 0xDB, 0x2B, 0x00 },{ 0xCB, 0x4F, 0x0F },
-         { 0x8B, 0x73, 0x00 },{ 0x00, 0x97, 0x00 },{ 0x00, 0xAB, 0x00 },{ 0x00, 0x93, 0x3B },{ 0x00, 0x83, 0x8B },{ 0x11, 0x11, 0x11 },{ 0x09, 0x09, 0x09 },{ 0x09, 0x09, 0x09 },
-         { 0xFF, 0xFF, 0xFF },{ 0x3F, 0xBF, 0xFF },{ 0x5F, 0x97, 0xFF },{ 0xA7, 0x8B, 0xFD },{ 0xF7, 0x7B, 0xFF },{ 0xFF, 0x77, 0xB7 },{ 0xFF, 0x77, 0x63 },{ 0xFF, 0x9B, 0x3B },
-         { 0xF3, 0xBF, 0x3F },{ 0x83, 0xD3, 0x13 },{ 0x4F, 0xDF, 0x4B },{ 0x58, 0xF8, 0x98 },{ 0x00, 0xEB, 0xDB },{ 0x66, 0x66, 0x66 },{ 0x0D, 0x0D, 0x0D },{ 0x0D, 0x0D, 0x0D },
-         { 0xFF, 0xFF, 0xFF },{ 0xAB, 0xE7, 0xFF },{ 0xC7, 0xD7, 0xFF },{ 0xD7, 0xCB, 0xFF },{ 0xFF, 0xC7, 0xFF },{ 0xFF, 0xC7, 0xDB },{ 0xFF, 0xBF, 0xB3 },{ 0xFF, 0xDB, 0xAB },
-         { 0xFF, 0xE7, 0xA3 },{ 0xE3, 0xFF, 0xA3 },{ 0xAB, 0xF3, 0xBF },{ 0xB3, 0xFF, 0xCF },{ 0x9F, 0xFF, 0xF3 },{ 0xDD, 0xDD, 0xDD },{ 0x11, 0x11, 0x11 },{ 0x11, 0x11, 0x11 }
-        ,{ 0x00, 0x00, 0x00 }
-};
+short palettes[65] = {29614,8401,21,16403,-30706,-22526,-24576,30784,16736,544,640,482,6635,0,32,32,-16905,925,8669,-32738,-18409,-8181,-9920,-13727,-29824,1184,1344,1159,1041,4226,2113,2113,-1,15871,23743,-23457,-3105,-1098,-1108,-825,-2585,-31102,20201,24531,1883,25388,2145,2145,-1,-20673,-14657,-10657,-449,-453,-522,-299,-204,-6156,-20585,-18439,-24578,-8453,4226,4226,0,};
 
-//int _write(int file, char* ptr, int len)
-//{
-//    for (int i = 0; i != len; ++i)
-//        USART_Transmit(*ptr++);
-//    return len;
-//}
+int _write(int file, char* ptr, int len)
+{
+    for (int i = 0; i != len; ++i)
+        LL_USART_TransmitData8(USART2,*ptr++);
+    return len;
+}
 
 byte get_bit(byte data,byte index)
 {
@@ -285,20 +272,22 @@ byte st_x(int addr,byte reg){
     return 3;
 }
 
+
 int indirect(){
     byte data = read_program(prgPc++);
-    byte r1 = read(data&0xff);
-    byte r2 = read((data&0xff)+1);
-    return concat16(r1,r2);
+    byte low = read(data & 0xFF);
+    byte high = read((data & 0xFF) + 1);
+    return concat16(low,high);
 }
 
-byte indirect_y(){
+byte indirect_y() {
     return read(indirect() + (c_reg_y & 0xFF));
 }
+
 byte indirect_x(){
     byte data = read_program(prgPc++);
     byte addr = (data & 0xFF) + (c_reg_x & 0xFF);
-    return read(concat16(read(data), read(addr + 1)));
+    return read(concat16(read(addr), read(addr + 1)));
 }
 
 void ams_and(byte data){
@@ -412,18 +401,16 @@ void interrupt_nmi() {
 }
 
 //ppu操作
-
-
 void render_sprite(int sl,int lineStartIndex) {
     byte spriteHeight = frameSpriteData[sl][0];
     short spritePatternStartAddr = frameSpriteData[sl][1] ? 0x1000:0;
     if(spriteHeight != 0){
         byte bgColorIndex = p_read(0x3F00);
-        short *palette = palettes[bgColorIndex & 0xff];
+        short palette = palettes[bgColorIndex & 0xff];
         //获取内存中的精灵数据
         for (int i = 0; i < 256; i += 4) {
             short y = (p_spr_ram[i]&0xff)+1;
-            short patternIndex = (short) (p_spr_ram[i+1]&0xff);
+            short patternIndex =  p_spr_ram[i+1]&0xff;
             //子图形数据
             byte attributeData = p_spr_ram[i+2];
             //背景层级
@@ -453,19 +440,17 @@ void render_sprite(int sl,int lineStartIndex) {
                 if(hFlip == 1) {
                     x = 7; x2 = -1; x3 = -1;
                 }
-                int index = sl*256-lineStartIndex*256*120;
+                int index = sl*256 + sprX -lineStartIndex*256*120;
 
                 for (;x!=x2; x+=x3) {
                     int colorLow = ((spritePatternData & 0x80)>>7) | (((colorData & 0x80)>>7) << 1);
-                    uint16_t bg = render[index + sprX + x];
-                    uint16_t sprg = ((palette[0] & 0xf8)<<8)|((palette[1] & 0xfc)<<3)|(palette[2]>>3);
+                    uint16_t bg = render[index + x];
+                    uint16_t sprg = palette;
                     if(colorLow && (backgroundPriority == 0||sprg==bg)){
 //                            //获取4位颜色
                         uint16_t colorAddr = 0x3f10 | colorHigh | colorLow;
                         if(colorAddr != 0x3f10){
-                            short *sprite = palettes[p_read(colorAddr)];
-                            uint16_t sprg_color = ((sprite[0] & 0xf8)<<8)|((sprite[1] & 0xfc)<<3)|(sprite[2]>>3);
-                            render[index + sprX + x] = sprg_color;
+                            render[index + x] = palettes[p_read(colorAddr)];
                         }
                     }
                     spritePatternData<<=1;
@@ -479,11 +464,10 @@ void render_sprite(int sl,int lineStartIndex) {
 void render_name_table(int lineStartIndex){
     byte bgColorIndex = p_read(0x3F00)&0xff;
     for (int line=lineStartIndex*120;line<(lineStartIndex+1)*120;line++){
-        byte fine_x = frameData[line][1];
+        byte fine_x = frameData[line][1]&0xff;
         byte fine_y = (frameData[line][0] >> 12) & 7;
         short nameTableAddress  = 0x2000 | (frameData[line][0] & 0xFFF);
         short patternStartAddr = frameData[line][2];
-        int baseIndex1 = line * 256 - fine_x;
         for (int i=0;i<32;i++) {
             //指示哪个tile
             byte coarse_x = nameTableAddress&0x1F;
@@ -496,22 +480,34 @@ void render_name_table(int lineStartIndex){
             byte patternData = p_read(patternAddress);
             //图案表颜色数据
             byte colorData = p_read(patternAddress + 8);
-            //取颜色高两位,属性表数据64byte,每32*32像素一个字节,每32条扫描线占用8字节
-            int attributeOffset = ((coarse_y & 2) ? 4 : 0) + ((coarse_x & 2)? 2 : 0);
-            int attributeAddress = 0x23C0 | (nameTableAddress & 0x0C00) | ((coarse_y>>2)<<3) | (coarse_x >> 2);
-            byte pchb = (p_read(attributeAddress)>>attributeOffset)&3;
-            //合并 取最终4位颜色
-            int baseIndex = baseIndex1+i*8;
-            for (int j=0; j<8; j++) {
-                int pclb = ((get_bit(colorData,7 - j)<<1)&3) | (get_bit(patternData,7 - j)&1);
-                int index = baseIndex + j;
-                int paletteIndex = bgColorIndex;
-                if(pclb) {
-                    int colorAddr = 0x3f00 + (pchb<<2|(pclb&0x3));
-                    paletteIndex = p_read(colorAddr);
+            if(patternData==0&&colorData==0){
+                for (int j=0; j<8; j++) {
+                    int index = line * 256 + i * 8 + j;// - fine_x;
+                    render[index-lineStartIndex*256*120] = palettes[bgColorIndex&0xff];
                 }
-                short *pixels = palettes[paletteIndex];
-                render[index-lineStartIndex*256*120] = ((pixels[0] & 0xf8)<<8)|((pixels[1] & 0xfc)<<3)|(pixels[2]>>3);
+            }else{
+                int attributeOffset = 0;
+                int attributeAddress = 0x23C0 | (nameTableAddress & 0x0C00);
+                if(coarse_x != 0 || coarse_y != 0){
+                    //取颜色高两位,属性表数据64byte,每32*32像素一个字节,每32条扫描线占用8字节
+                    attributeOffset = ((coarse_y & 2) == 0 ? 0 : 4) + ((coarse_x & 2) == 0 ? 0 : 2);
+                    attributeAddress = attributeAddress | ((coarse_y>>2)<<3) | (coarse_x >> 2);
+                }
+                byte pchb = (p_read(attributeAddress)>>attributeOffset)&3;
+                //合并 取最终4位颜色
+                for (int j=0; j<8; j++) {
+                    int pclb = ((get_bit(colorData,7 - j)<<1)&3) | (get_bit(patternData,7 - j)&1);
+                    int index = line * 256 + i * 8 + j;//-fine_x;
+                    if(index<0){
+                        index = 0;
+                    }
+                    int paletteIndex = bgColorIndex&0xff;
+                    if(pclb!=0) {
+                        int colorAddr = 0x3f00 + (pchb<<2|(pclb&0x3));
+                        paletteIndex = p_read(colorAddr);
+                    }
+                    render[index-lineStartIndex*256*120] = palettes[paletteIndex];
+                }
             }
             // if coarse X == 31 (coarseX的最大值就是31即11111B,所以到最大值了要切换到下一个nametable)
             if ((nameTableAddress & 0x1F) == 0x1F) {
@@ -520,9 +516,7 @@ void render_name_table(int lineStartIndex){
                 nameTableAddress++;
             }
         }
-
         render_sprite(line,lineStartIndex);
-
     }
 }
 
@@ -532,8 +526,8 @@ void renderSprite(int sl) {
     short spritePatternStartAddr = get_bit(p_reg_2000,3) ? 0x1000:0;
     //获取内存中的精灵数据
     for (int i = 0; i < 256; i += 4) {
-        short y = (short) ((p_spr_ram[i]&0xff)+1);
-        short patternIndex = (short) (p_spr_ram[i+1]&0xff);
+        short y = (p_spr_ram[i]&0xff)+1;
+        short patternIndex = p_spr_ram[i+1]&0xff;
         //子图形数据
         byte attributeData = p_spr_ram[i+2];
         //图案垂直翻转
@@ -563,13 +557,9 @@ void renderSprite(int sl) {
     }
 }
 
-
-
-
-
 void render_name_table2(int scanLineIndex){
     frameData[scanLineIndex][0] = p_vram_addr;
-    frameData[scanLineIndex][1] = p_scroll_x;
+    frameData[scanLineIndex][1] = p_scroll_x&0xff;
     frameData[scanLineIndex][2] = get_bit(p_reg_2000,4)?0x1000:0;
 }
 void ppu_render(int line) {
@@ -635,12 +625,7 @@ void exec_instruction() {
                 break;
             case 0x10:
                 data = read_program(prgPc++);
-                if (flag_n == 0) {
-                    cpu_cycle -= 2 + ((prgPc & 0xff00) == ((prgPc + data) & 0xff00) ? 1 : 2);
-                    prgPc += data;
-                    break;
-                }
-                cpu_cycle -= 2;
+                cpu_cycle -= ams_branch(data,flag_n == 0);
                 break;
             case 0xA0:
                 ams_immed(&c_reg_y);
@@ -660,12 +645,7 @@ void exec_instruction() {
                 break;
             case 0xB0:
                 data = read_program(prgPc++);
-                if(flag_c) {
-                    cpu_cycle -= 2 + ((prgPc & 0xff00) == ((prgPc + data) & 0xff00) ? 1 : 2);
-                    prgPc += data;
-                    break;
-                }
-                cpu_cycle -= 2;
+                cpu_cycle -= ams_branch(data,flag_c);
                 break;
             case 0xCA:
                 c_reg_x -= 1;
@@ -674,12 +654,7 @@ void exec_instruction() {
                 break;
             case 0xD0:
                 data = read_program(prgPc++);
-                if(flag_z == 0) {
-                    cpu_cycle -= 2 + ((prgPc & 0xff00) == ((prgPc + data) & 0xff00) ? 1 : 2);
-                    prgPc += data;
-                    break;
-                }
-                cpu_cycle -= 2;
+                cpu_cycle -= ams_branch(data,flag_z == 0);
                 break;
                 //JSR
             case 0x20:
@@ -701,7 +676,7 @@ void exec_instruction() {
                 break;
                 //STA_INDIRECT_Y
             case 0x91:
-                write(indirect_y(),c_reg_a);
+                write(indirect()+(c_reg_y&0xff),c_reg_a);
                 cpu_cycle -= 6;
                 break;
             case 0x88:
@@ -720,6 +695,21 @@ void exec_instruction() {
                 prgPc = pop16_stack();
                 prgPc+=1;
                 cpu_cycle -= 6;
+                break;
+                //BRK
+            case 0x00:
+                flag_b = 1;
+                flag_i = 1;
+                short pc = prgPc + 2;
+                push16_stack(pc);
+                push_stack(flag_merge());
+                prgPc = concat16(read(0xFFFE),read(0xFFFF));
+                cpu_cycle -= 7;
+                break;
+                //SED
+            case 0xF8:
+                flag_d=1;
+                cpu_cycle -= 2;
                 break;
                 //BIT_ABS
             case 0x2C:
@@ -852,7 +842,7 @@ void exec_instruction() {
                 //BEQ
             case 0xF0:
                 data = read_program(prgPc++);
-                cpu_cycle-= ams_branch(data,flag_z);
+                cpu_cycle -= ams_branch(data,flag_z);
                 break;
                 //INX
             case 0xE8:
@@ -875,6 +865,25 @@ void exec_instruction() {
                 data = read_program(prgPc++);
                 cpu_cycle-= ams_branch(data,flag_c==0);
                 break;
+                //EOR_ZERO
+            case 0x45:
+                ams_eor_a(read(read_program(prgPc++)&0xFF));
+                cpu_cycle-=3;
+                break;
+                //CLC
+            case 0x18:
+                flag_c = 0;
+                break;
+                //ROR_ABS_X
+            case 0x7E:
+                abs_data = ams_abs_x(c_reg_x);
+                data = read(abs_data);
+                data2 = ((data & 0xff) >> 1) | (flag_c << 7);
+                flag_c=data&1;
+                set_nz(data2);
+                write(abs_data,data2);
+                cpu_cycle-=7;
+                break;
                 //DEC_ABS
             case 0xCE:
                 abs_data = ams_abs();
@@ -890,27 +899,6 @@ void exec_instruction() {
                 write(data&0xFF,data2);
                 set_nz(data2);
                 cpu_cycle-=5;
-                break;
-                //EOR_ZERO
-            case 0x45:
-                data = read( read_program(prgPc++)&0xFF);
-                ams_eor_a(data);
-                cpu_cycle-=3;
-                break;
-                //CLC
-            case 0x18:
-                flag_c = 0;
-                cpu_cycle-=2;
-                break;
-                //ROR_ABS_X
-            case 0x7E:
-                abs_data = ams_abs_x(c_reg_x);
-                data = read(abs_data);
-                data2 = ((data & 0xff) >> 1) | (flag_c << 7);
-                flag_c=data&1;
-                set_nz(data2);
-                write(abs_data,data2);
-                cpu_cycle-=7;
                 break;
                 //ASL_A
             case 0x0A:
@@ -1097,7 +1085,8 @@ void exec_instruction() {
             case 0x6A:
                 data = ((c_reg_a & 0xff) >> 1) | (flag_c << 7);
                 flag_c=c_reg_a&1;
-                ams_lda(data);
+                set_nz(data);
+                c_reg_a = data;
                 cpu_cycle-=2;
                 break;
                 //ROL_ABS
@@ -1193,6 +1182,16 @@ void exec_instruction() {
                 ams_adc(read(abs_data));
                 cpu_cycle-=2;
                 break;
+                //PHP
+            case 0x08:
+                push_stack(flag_merge());
+                cpu_cycle-=3;
+                break;
+                //CPX_ZERO
+            case 0xE4:
+                ams_cpx(read(read_program(prgPc++)&0xFF));
+                cpu_cycle-=3;
+                break;
                 //SBC_ZERO
             case 0xE5:
                 data = read(read_program(prgPc++)&0xff);
@@ -1212,7 +1211,7 @@ void exec_instruction() {
                 break;
                 //ASL_ZERO
             case 0x06:
-                ams_asl(read_program(prgPc++)&0xff);
+                ams_asl(read_program(prgPc++));
                 cpu_cycle-=5;
                 break;
                 //AND_INDIRECT_Y
@@ -1440,7 +1439,8 @@ void exec_instruction() {
                 printf("unknown ins %X\n",opc&0xFF);
                 break;
         }
-        //printf("\n");
+//        printf("\n");
+//        fflush(stdout);
     }
 }
 
@@ -1474,18 +1474,19 @@ void coarseY(){
 }
 
 void NES_Start() {
+
     uint8_t n = *(__IO uint8_t*)(0x08020000);
     uint8_t e = *(__IO uint8_t*)(0x08020001);
     uint8_t s = *(__IO uint8_t*)(0x08020002);
-    printf("%c",n);
-    printf("%c",e);
-    printf("%c\n",s);
+//    printf("%c",n);
+//    printf("%c",e);
+//    printf("%c\n",s);
     int rom_prg_size = *(__IO uint8_t*)(0x08020004);
     int rom_chr_size = *(__IO uint8_t*)(0x08020005);
 
     program_length = 16 * 1024 * rom_prg_size;
     int chr_length = 8 * 1024 * rom_chr_size;
-    printf("rom_prg_size:%d\nrom_chr_size:%d\n",program_length,chr_length);
+    //printf("rom_prg_size:%d\nrom_chr_size:%d\n",program_length,chr_length);
 
     LCD_SetRegion(30,0,255+30,LCD_HEIGHT);
     LL_DMA_ConfigAddresses(DMA2,LL_DMA_STREAM_2,(uint32_t)&render, LL_SPI_DMA_GetRegAddr(SPI1),LL_DMA_GetDataTransferDirection(DMA2, LL_DMA_STREAM_2));
@@ -1516,7 +1517,7 @@ void NES_Start() {
         //NMI中断
         interrupt_nmi();
         //242-260
-        for (int i = 242; i < 262; i++) {
+        for (int i = 242; i < 252; i++) {
             exec_instruction();
         }
         set_bit(&p_reg_2002,0,7);

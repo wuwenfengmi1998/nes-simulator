@@ -64,14 +64,9 @@ public class NesMobo {
         int[] renderBuff = new int[(256+16)*240];
         short[][] frameData = new short[240][3];
         byte[][] frameSpriteData = new byte[240][2];
-        long s = System.currentTimeMillis();
-        int frame = 0;
         while (true)  {
-//            NesWatch watch = new NesWatch();
-//            watch.start();
             long begin = System.currentTimeMillis();
             for (int i = 0; i < 240; i++) {
-//                System.out.println(i);
                 if(DataBus.showBg() || DataBus.showSpr()){
                     DataBus.p_vram_addr = (short) ((DataBus.p_vram_addr & 0xfbe0) | (DataBus.p_vram_temp_addr & 0x041f));
                 }
@@ -97,13 +92,13 @@ public class NesMobo {
             this.endVBlank();
 //            watch.stop();
 
-            if(System.currentTimeMillis()-s>=1000){
-                System.out.println(frame);
-                s = System.currentTimeMillis();
-                frame=0;
-            }else{
-                frame++;
-            }
+//            if(System.currentTimeMillis()-s>=1000){
+//                System.out.println(frame);
+//                s = System.currentTimeMillis();
+//                frame=0;
+//            }else{
+//                frame++;
+//            }
             this.delay(begin,perFrameMillis);
         }
     }

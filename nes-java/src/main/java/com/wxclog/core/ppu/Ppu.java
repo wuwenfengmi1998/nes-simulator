@@ -75,7 +75,7 @@ public class Ppu {
             byte fine_y = (byte) ((scanData[line][0] >> 12) & 7);
             short nameTableAddress  = (short) (0x2000 | (scanData[line][0] & 0xFFF));
             short patternStartAddr = (short) (scanData[line][2] + fine_y);
-            for (int i=0;i<32;i++) {
+            for (int i=0;i<33;i++) {
                 //指示哪个tile
                 byte coarse_x = (byte) (nameTableAddress&0x1F);
                 byte coarse_y = (byte) ((nameTableAddress>>5)&0x1F);
